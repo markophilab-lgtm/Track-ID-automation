@@ -185,3 +185,65 @@ def ensure_token(prompt_for_app_creds_fn=None):
     token = run_oauth_flow(client_id, client_secret)
     save_token(TOKEN_PATH, token)
     return token
+
+
+# --- Cloudcast operations ---
+
+API_BASE = "https://api.mixcloud.com"
+
+
+def get_me(token):
+    """Return the authenticated username. Raises MixcloudAuthError on 401."""
+    resp = requests.get(f"{API_BASE}/me/", params={"access_token": token}, timeout=_TIMEOUT)
+    if resp.status_code == 401:
+        raise MixcloudAuthError("Mixcloud token invalid or expired (401)")
+    if resp.status_code != 200:
+        raise MixcloudAPIError(f"GET /me/ failed: HTTP {resp.status_code}")
+    return resp.json()["username"]
+
+
+def latest_cloudcast(token, username=None):
+    """Return the dict for the user's most recent cloudcast.
+
+    If username is None, calls get_me() first.
+    Raises MixcloudAPIError if no cloudcasts exist.
+    """
+    if username is None:
+        username = get_me(token)
+    resp = requests.get(
+        f"{API_BASE}/{username}/cloudcasts/",
+        params={"access_token": token, "limit": 5},
+        timeout=_TIMEOUT,
+    )
+    if resp.status_code == 401:
+        raise MixcloudAuthError("Mixcloud token invalid or expired (401)")
+    if resp.status_code != 200:
+        raise MixcloudAPIError(f"List cloudcasts failed: HTTP {resp.status_code}")
+    data = resp.json().get("data", [])
+    if not data:
+        raise MixcloudAPIError(f"No cloudcasts found for user {username}")
+    return data[0]  # Mixcloud returns most-recent first
+
+
+def update_cloudcast(token, username, slug, description, chapters):
+    """Edit a cloudcast's description and tracklist sections via the Mixcloud upload edit endpoint.
+
+    Raises MixcloudAuthError on 401, MixcloudAPIError on 403 (typically: not Pro) or other failures.
+    """
+    url = f"{API_BASE}/upload/{username}/{slug}/edit/?access_token={token}"
+    form = {"description": description}
+    for i, ch in enumerate(chapters):
+        form[f"sections-{i}-start_time"] = ch.time_seconds
+        form[f"sections-{i}-artist_name"] = ch.artist
+        form[f"sections-{i}-song_name"] = ch.title
+
+    resp = requests.post(url, data=form, timeout=_TIMEOUT)
+    if resp.status_code == 401:
+        raise MixcloudAuthError("Mixcloud token invalid or expired (401)")
+    if resp.status_code == 403:
+        raise MixcloudAPIError(
+            f"Mixcloud refused edit (403). Most common cause: account is not Pro. Detail: {resp.text[:200]}"
+        )
+    if resp.status_code not in (200, 201):
+        raise MixcloudAPIError(f"Update cloudcast failed: HTTP {resp.status_code} — {resp.text[:200]}")
+    return resp.json() if resp.text else {}
