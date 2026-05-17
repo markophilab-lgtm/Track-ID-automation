@@ -24,6 +24,7 @@ OAUTH_AUTHORIZE = "https://www.mixcloud.com/oauth/authorize/"
 OAUTH_TOKEN = "https://www.mixcloud.com/oauth/access_token/"
 
 _TIMEOUT = 15
+_OAUTH_WAIT_TIMEOUT = 300  # 5 minutes max wait for browser callback
 
 
 class MixcloudAuthError(Exception):
@@ -134,13 +135,27 @@ def run_oauth_flow(client_id, client_secret):
     thread.start()
     try:
         url = build_authorize_url(client_id)
-        print(f"\nOpening browser to authorize this app with Mixcloud...\n  {url}\n")
-        webbrowser.open(url)
-        # Wait for the handler to capture either code or error
-        while _CallbackHandler.captured_code is None and _CallbackHandler.captured_error is None:
+        opened = webbrowser.open(url)
+        if opened:
+            print(f"\nOpening browser to authorize this app with Mixcloud...")
+            print(f"If the browser didn't open, paste this URL manually:\n  {url}\n")
+        else:
+            print(f"\nCouldn't auto-open browser. Paste this URL into your browser:\n  {url}\n")
+        # Wait for callback, with a timeout so we don't hang forever
+        deadline = time.time() + _OAUTH_WAIT_TIMEOUT
+        while (_CallbackHandler.captured_code is None
+               and _CallbackHandler.captured_error is None
+               and time.time() < deadline):
             time.sleep(0.1)
     finally:
         server.shutdown()
+
+    if (_CallbackHandler.captured_code is None
+            and _CallbackHandler.captured_error is None):
+        raise MixcloudAuthError(
+            f"OAuth timed out after {_OAUTH_WAIT_TIMEOUT}s. "
+            f"No response from browser. Re-run the command and try again."
+        )
 
     if _CallbackHandler.captured_error:
         raise MixcloudAuthError(f"OAuth error: {_CallbackHandler.captured_error}")
