@@ -27,7 +27,7 @@ from stream_anchor import find_latest_movie, _FILENAME_PATTERN
 from track_filter import filter_short_tracks
 from timestamp_builder import build_chapters
 from songlink_lookup import songlink_url
-from youtube_formatter import format_youtube
+from youtube_formatter import format_youtube, format_mixcloud
 from clipboard_and_notify import copy_to_clipboard, notify
 from mixcloud_client import (
     ensure_token, get_me, latest_cloudcast, update_cloudcast,
@@ -163,12 +163,14 @@ def main(argv=None):
         print(f"Looking up links for {len(chapters)} chapters...", file=sys.stderr)
         _enrich_chapters(chapters)
 
-    # 6. Build YouTube description
-    description = format_youtube(chapters, stream_start.date())
+    # 6. Build descriptions (YouTube = full tracklist with links; Mixcloud = short prose,
+    # tracklist is sent separately as `sections` and Mixcloud caps description at 1000 chars).
+    yt_description = format_youtube(chapters, stream_start.date())
+    mc_description = format_mixcloud(stream_start.date())
 
     if args.dry_run:
         print("\n--- DRY RUN: description that would be used ---\n", file=sys.stderr)
-        print(description)
+        print(yt_description)
         print("\n--- end dry run ---", file=sys.stderr)
         return 0
 
@@ -183,16 +185,16 @@ def main(argv=None):
             mc_message = f"Mixcloud setup failed: {e}"
             token = None
         if token:
-            mc_ok, mc_message = _post_to_mixcloud(token, args.cloudcast, description, chapters)
+            mc_ok, mc_message = _post_to_mixcloud(token, args.cloudcast, mc_description, chapters)
 
     # 8. YouTube clipboard
     yt_message = "(YouTube clipboard skipped via flag)"
     if not args.skip_youtube:
         try:
-            copy_to_clipboard(description)
+            copy_to_clipboard(yt_description)
             yt_message = "YouTube description copied to clipboard"
         except Exception as e:
-            print(description)  # fallback to stdout
+            print(yt_description)  # fallback to stdout
             yt_message = f"Clipboard failed: {e} (description printed above)"
 
     # 9. Notify

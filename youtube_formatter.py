@@ -27,3 +27,12 @@ def format_youtube(chapters, stream_date):
     lines.append("")
     lines.append(f"Recorded live {stream_date.isoformat()}.")
     return "\n".join(lines)
+
+
+def format_mixcloud(stream_date):
+    """Return the Mixcloud description string. stream_date is a datetime.date.
+
+    Mixcloud caps descriptions at 1000 chars and renders the tracklist natively
+    from the `sections` data we post alongside, so the description stays short.
+    """
+    return f"Recorded live {stream_date.isoformat()}."
