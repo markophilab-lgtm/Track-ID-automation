@@ -225,3 +225,61 @@ def ensure_token(prompt_for_app_creds_fn=None):
     token = run_oauth_flow(client_id, client_secret)
     save_token(token)
     return token
+
+
+# --- Track upload ---
+
+def _post_tracks(access_token, audio_path, title, description, tags):
+    data = {
+        "track[title]": title,
+        "track[description]": description,
+        "track[sharing]": "public",
+    }
+    if tags:
+        data["track[tag_list]"] = tags
+    with open(audio_path, "rb") as f:
+        files = {"track[asset_data]": (Path(audio_path).name, f, "audio/mpeg")}
+        return requests.post(
+            f"{API_BASE}/tracks",
+            headers={"Authorization": f"OAuth {access_token}"},
+            data=data, files=files, timeout=_UPLOAD_TIMEOUT,
+        )
+
+
+def _refresh_and_save(token):
+    client_id, client_secret = load_app_credentials()
+    new_token = refresh_access_token(client_id, client_secret, token["refresh_token"])
+    save_token(new_token)
+    return new_token
+
+
+def upload_track(audio_path, title, description, tags=""):
+    """Upload an audio file as a public track. Returns its permalink URL.
+
+    Raises SoundCloudAuthError (no/expired token) or SoundCloudAPIError.
+    """
+    audio_path = Path(audio_path)
+    size = audio_path.stat().st_size
+    if size > MAX_UPLOAD_BYTES:
+        raise SoundCloudAPIError(
+            f"File is {size / 1e9:.1f} GB — over SoundCloud's 4 GB upload limit"
+        )
+
+    token = load_token()
+    if not token:
+        raise SoundCloudAuthError(
+            "No SoundCloud token saved. Run: python3 soundcloud_publish.py --setup"
+        )
+
+    resp = _post_tracks(token["access_token"], audio_path, title, description, tags)
+    if resp.status_code == 401:
+        token = _refresh_and_save(token)  # raises SoundCloudAuthError if refresh fails
+        resp = _post_tracks(token["access_token"], audio_path, title, description, tags)
+    if resp.status_code not in (200, 201):
+        time.sleep(5)
+        resp = _post_tracks(token["access_token"], audio_path, title, description, tags)
+    if resp.status_code not in (200, 201):
+        raise SoundCloudAPIError(
+            f"Upload failed: HTTP {resp.status_code} — {resp.text[:200]}"
+        )
+    return resp.json().get("permalink_url", "")

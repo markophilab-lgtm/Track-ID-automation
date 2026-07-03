@@ -82,3 +82,88 @@ def test_refresh_returns_new_token_dict():
     assert out == {"access_token": "A2", "refresh_token": "R2"}
     assert m.call_args.kwargs["data"]["grant_type"] == "refresh_token"
     assert m.call_args.kwargs["data"]["refresh_token"] == "oldR"
+
+
+def _upload_env(td, post_responses, refresh_result=None):
+    """Patch token/creds paths into td and requests.post with a response sequence."""
+    tok_path = Path(td) / "soundcloud.json"
+    cred_path = Path(td) / "soundcloud_app.json"
+    sc.save_token({"access_token": "OLD", "refresh_token": "R"}, path=tok_path)
+    sc.save_app_credentials("cid", "sec", path=cred_path)
+    patches = [
+        mock.patch.object(sc, "TOKEN_PATH", tok_path),
+        mock.patch.object(sc, "APP_CRED_PATH", cred_path),
+        mock.patch.object(sc.time, "sleep"),
+        mock.patch.object(sc.requests, "post", side_effect=post_responses),
+    ]
+    if refresh_result is not None:
+        patches.append(mock.patch.object(sc, "refresh_access_token",
+                                         return_value=refresh_result))
+    return patches, tok_path
+
+
+def test_upload_success_returns_permalink():
+    with tempfile.TemporaryDirectory() as td:
+        audio = Path(td) / "set.mp3"; audio.write_bytes(b"x" * 10)
+        patches, _ = _upload_env(td, [_resp(201, {"permalink_url": "https://soundcloud.com/u/set"})])
+        with patches[0], patches[1], patches[2], patches[3] as m:
+            url = sc.upload_track(audio, "My Set", "desc", tags="dj mix")
+        assert url == "https://soundcloud.com/u/set"
+        assert m.call_args.kwargs["data"]["track[title]"] == "My Set"
+        assert m.call_args.kwargs["data"]["track[sharing]"] == "public"
+        assert m.call_args.kwargs["data"]["track[tag_list]"] == "dj mix"
+        assert "track[asset_data]" in m.call_args.kwargs["files"]
+        assert m.call_args.kwargs["headers"]["Authorization"] == "OAuth OLD"
+
+
+def test_upload_refreshes_on_401_and_saves_new_token():
+    with tempfile.TemporaryDirectory() as td:
+        audio = Path(td) / "set.mp3"; audio.write_bytes(b"x")
+        patches, tok_path = _upload_env(
+            td,
+            [_resp(401, {}), _resp(201, {"permalink_url": "https://sc/u/s"})],
+            refresh_result={"access_token": "NEW", "refresh_token": "R2"},
+        )
+        with patches[0], patches[1], patches[2], patches[3] as m, patches[4]:
+            url = sc.upload_track(audio, "t", "d")
+        assert url == "https://sc/u/s"
+        assert m.call_args.kwargs["headers"]["Authorization"] == "OAuth NEW"
+        assert sc.load_token(path=tok_path)["access_token"] == "NEW"
+
+
+def test_upload_rejects_oversize_file_before_network():
+    with tempfile.TemporaryDirectory() as td:
+        audio = Path(td) / "set.mp3"; audio.write_bytes(b"x" * 100)
+        with mock.patch.object(sc, "MAX_UPLOAD_BYTES", 50), \
+             mock.patch.object(sc.requests, "post") as m:
+            try:
+                sc.upload_track(audio, "t", "d")
+                assert False, "should have raised"
+            except sc.SoundCloudAPIError as e:
+                assert "4 GB" in str(e) or "limit" in str(e)
+        assert m.call_count == 0
+
+
+def test_upload_no_token_raises_with_setup_hint():
+    with tempfile.TemporaryDirectory() as td:
+        audio = Path(td) / "set.mp3"; audio.write_bytes(b"x")
+        with mock.patch.object(sc, "TOKEN_PATH", Path(td) / "missing.json"):
+            try:
+                sc.upload_track(audio, "t", "d")
+                assert False, "should have raised"
+            except sc.SoundCloudAuthError as e:
+                assert "--setup" in str(e)
+
+
+def test_upload_server_error_retries_once_then_raises():
+    with tempfile.TemporaryDirectory() as td:
+        audio = Path(td) / "set.mp3"; audio.write_bytes(b"x")
+        patches, _ = _upload_env(td, [_resp(500, {"error": "boom"}),
+                                      _resp(500, {"error": "boom"})])
+        with patches[0], patches[1], patches[2], patches[3] as m:
+            try:
+                sc.upload_track(audio, "t", "d")
+                assert False, "should have raised"
+            except sc.SoundCloudAPIError as e:
+                assert "500" in str(e)
+        assert m.call_count == 2
