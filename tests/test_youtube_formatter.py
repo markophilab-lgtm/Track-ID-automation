@@ -31,7 +31,8 @@ def test_full_description():
         "5:23 Anthony Naples — Crystals | https://discogs.com/release/12345 | https://song.link/i/abc\n"
         "12:47 Joy Orbison — Hyph Mngo | https://discogs.com/release/67890 | https://song.link/i/def\n"
         "\n"
-        "Recorded live 2026-05-17."
+        "Recorded live 2026-05-17.\n"
+        "Promotional use only — not monetized."
     )
     assert out == expected, f"\nExpected:\n{expected}\n\nGot:\n{out}"
 
@@ -72,3 +73,9 @@ def test_already_prefixed_url_not_doubled():
     out = format_youtube(chapters, date(2026, 5, 17))
     assert "https://https://" not in out
     assert "https://discogs.com/release/1" in out
+
+
+def test_promo_note_is_last_line():
+    chapters = [_chap(0, "0:00", "Intro", "Intro")]
+    out = format_youtube(chapters, date(2026, 5, 17))
+    assert out.splitlines()[-1] == "Promotional use only — not monetized."

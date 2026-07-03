@@ -1,5 +1,7 @@
 """Render a YouTube-chapter-formatted tracklist description from a Chapter list."""
 
+PROMO_NOTE = "Promotional use only — not monetized."
+
 
 def _prefix_https(url):
     if not url:
@@ -26,6 +28,7 @@ def format_youtube(chapters, stream_date):
         lines.append(_chapter_line(ch))
     lines.append("")
     lines.append(f"Recorded live {stream_date.isoformat()}.")
+    lines.append(PROMO_NOTE)
     return "\n".join(lines)
 
 
