@@ -38,13 +38,20 @@ def test_load_token_missing_returns_none():
 
 
 def test_build_authorize_url_contains_pkce_params():
-    url = sc.build_authorize_url("CID", "CHAL")
+    url = sc.build_authorize_url("CID", "CHAL", state="STATE123")
     assert url.startswith("https://secure.soundcloud.com/authorize?")
     assert "client_id=CID" in url
     assert "code_challenge=CHAL" in url
     assert "code_challenge_method=S256" in url
     assert "response_type=code" in url
+    assert "state=STATE123" in url
     assert "localhost%3A8766" in url
+
+
+def test_build_authorize_url_generates_state_when_omitted():
+    # state is REQUIRED by SoundCloud (CSRF protection) — the page renders blank without it
+    url = sc.build_authorize_url("CID", "CHAL")
+    assert "state=" in url
 
 
 def _resp(status, body):

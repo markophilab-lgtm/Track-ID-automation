@@ -99,13 +99,20 @@ def save_token(token_dict, path=None):
 
 # --- OAuth ---
 
-def build_authorize_url(client_id, challenge, redirect_uri=REDIRECT_URI):
+def make_state():
+    """Random string for the required `state` param (CSRF protection)."""
+    return base64.urlsafe_b64encode(os.urandom(24)).decode("ascii").rstrip("=")
+
+
+def build_authorize_url(client_id, challenge, redirect_uri=REDIRECT_URI, state=None):
+    # `state` is REQUIRED by SoundCloud — the authorize page renders blank without it.
     params = {
         "client_id": client_id,
         "redirect_uri": redirect_uri,
         "response_type": "code",
         "code_challenge": challenge,
         "code_challenge_method": "S256",
+        "state": state if state else make_state(),
     }
     return OAUTH_AUTHORIZE + "?" + urllib.parse.urlencode(params)
 
@@ -148,6 +155,7 @@ def refresh_access_token(client_id, client_secret, refresh_token):
 class _CallbackHandler(http.server.BaseHTTPRequestHandler):
     captured_code = None
     captured_error = None
+    captured_state = None
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -158,6 +166,7 @@ class _CallbackHandler(http.server.BaseHTTPRequestHandler):
         qs = urllib.parse.parse_qs(parsed.query)
         if "code" in qs:
             _CallbackHandler.captured_code = qs["code"][0]
+            _CallbackHandler.captured_state = qs.get("state", [None])[0]
             self.send_response(200)
             self.send_header("Content-Type", "text/html")
             self.end_headers()
@@ -175,13 +184,15 @@ def run_oauth_flow(client_id, client_secret):
     """Open browser, run local listener on 8766, return token dict. Blocking."""
     _CallbackHandler.captured_code = None
     _CallbackHandler.captured_error = None
+    _CallbackHandler.captured_state = None
     verifier = make_verifier()
     challenge = pkce_challenge(verifier)
+    state = make_state()
     server = http.server.HTTPServer((REDIRECT_HOST, REDIRECT_PORT), _CallbackHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        url = build_authorize_url(client_id, challenge)
+        url = build_authorize_url(client_id, challenge, state=state)
         opened = webbrowser.open(url)
         if opened:
             print("\nOpening browser to authorize this app with SoundCloud...")
@@ -203,6 +214,10 @@ def run_oauth_flow(client_id, client_secret):
         )
     if _CallbackHandler.captured_error:
         raise SoundCloudAuthError(f"OAuth error: {_CallbackHandler.captured_error}")
+    if _CallbackHandler.captured_state != state:
+        raise SoundCloudAuthError(
+            "OAuth state mismatch (possible CSRF or stale tab). Re-run setup."
+        )
     return exchange_code_for_token(
         client_id, client_secret, REDIRECT_URI, _CallbackHandler.captured_code, verifier
     )
