@@ -29,6 +29,7 @@ from timestamp_builder import build_chapters
 from songlink_lookup import songlink_url
 from youtube_formatter import format_youtube, format_mixcloud
 from clipboard_and_notify import copy_to_clipboard, notify
+from description_writer import write_outputs, default_title
 from mixcloud_client import (
     ensure_token, get_me, latest_cloudcast, update_cloudcast,
     MixcloudAuthError, MixcloudAPIError,
@@ -115,6 +116,8 @@ def main(argv=None):
     parser.add_argument("--dry-run", action="store_true", help="Build everything but post/copy nothing")
     parser.add_argument("--skip-mixcloud", action="store_true")
     parser.add_argument("--skip-youtube", action="store_true")
+    parser.add_argument("--write-descriptions", metavar="DIR", default=None,
+                        help="Write description files + run_meta.json to DIR (skipped on --dry-run)")
     args = parser.parse_args(argv)
 
     # 1. Find recording -> stream_start
@@ -173,6 +176,17 @@ def main(argv=None):
         print(yt_description)
         print("\n--- end dry run ---", file=sys.stderr)
         return 0
+
+    # 6.5 Write description files for downstream stages (SoundCloud upload + YouTube browser publish)
+    if args.write_descriptions:
+        meta = {
+            "stream_start": stream_start.isoformat(),
+            "movie_path": str(movie_path),
+            "title": default_title(stream_start.date()),
+            "chapter_count": len(chapters),
+        }
+        out_dir = write_outputs(args.write_descriptions, yt_description, yt_description, meta)
+        print(f"Descriptions written to {out_dir}", file=sys.stderr)
 
     # 7. Mixcloud
     mc_message = "(Mixcloud skipped via flag)"
