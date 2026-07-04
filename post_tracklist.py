@@ -118,6 +118,8 @@ def main(argv=None):
     parser.add_argument("--skip-youtube", action="store_true")
     parser.add_argument("--write-descriptions", metavar="DIR", default=None,
                         help="Write description files + run_meta.json to DIR (skipped on --dry-run)")
+    parser.add_argument("--artist", default="waterhousestudios",
+                        help="Artist name for the title: '<artist> @ WTHS Radio (D.M.Y)'")
     args = parser.parse_args(argv)
 
     # 1. Find recording -> stream_start
@@ -182,7 +184,7 @@ def main(argv=None):
         meta = {
             "stream_start": stream_start.isoformat(),
             "movie_path": str(movie_path),
-            "title": default_title(stream_start.date()),
+            "title": default_title(stream_start.date(), args.artist),
             "chapter_count": len(chapters),
         }
         out_dir = write_outputs(args.write_descriptions, yt_description, yt_description, meta)

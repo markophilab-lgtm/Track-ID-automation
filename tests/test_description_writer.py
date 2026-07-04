@@ -30,5 +30,14 @@ def test_creates_missing_directory_and_overwrites():
         assert (out / "youtube_description.txt").read_text() == "two"
 
 
-def test_default_title():
-    assert default_title(date(2026, 5, 17)) == "waterhousestudios live stream 2026-05-17"
+def test_default_title_artist_at_wths_radio_dmy():
+    # Format requested by Marko 2026-07-04: (artist name) @ WTHS Radio (D.M.Y)
+    assert default_title(date(2026, 7, 1), "Marko") == "Marko @ WTHS Radio (1.7.2026)"
+
+
+def test_default_title_no_leading_zeros():
+    assert default_title(date(2026, 12, 25), "Anna B") == "Anna B @ WTHS Radio (25.12.2026)"
+
+
+def test_default_title_fallback_artist():
+    assert default_title(date(2026, 7, 1)) == "waterhousestudios @ WTHS Radio (1.7.2026)"

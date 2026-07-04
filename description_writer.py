@@ -20,6 +20,10 @@ def write_outputs(out_dir, youtube_description, soundcloud_description, meta):
     return out_dir
 
 
-def default_title(stream_date):
-    """stream_date is a datetime.date."""
-    return f"waterhousestudios live stream {stream_date.isoformat()}"
+def default_title(stream_date, artist="waterhousestudios"):
+    """Title format (Marko, 2026-07-04): '<artist> @ WTHS Radio (D.M.Y)'.
+
+    stream_date is a datetime.date; D.M.Y has no leading zeros (e.g. 1.7.2026).
+    """
+    d = stream_date
+    return f"{artist} @ WTHS Radio ({d.day}.{d.month}.{d.year})"

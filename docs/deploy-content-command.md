@@ -32,11 +32,13 @@ cd "$HOME/Desktop/TRACK ID PROJECT" && python3 post_tracklist.py --dry-run --ski
 
 Show the user the description, stream-start datetime, filtered-track count, chapter count.
 Flag anything suspicious (0-1 chapters, many pre-stream skips, odd start time).
-Ask: "Looks right — deploy?" Wait for confirmation, then (10-minute Bash timeout —
-Songlink pacing makes a 30-track set take ~3.5 min):
+Ask: "Looks right — deploy? And who's the artist for this set?" (title format is
+`<artist> @ WTHS Radio (D.M.Y)`; if they don't name one, omit --artist and the
+fallback `waterhousestudios` is used). Wait for confirmation, then (10-minute Bash
+timeout — Songlink pacing makes a 30-track set take ~3.5 min):
 
 ```bash
-cd "$HOME/Desktop/TRACK ID PROJECT" && python3 post_tracklist.py --skip-mixcloud --write-descriptions ~/Desktop/deploy_output
+cd "$HOME/Desktop/TRACK ID PROJECT" && python3 post_tracklist.py --skip-mixcloud --artist "<artist>" --write-descriptions ~/Desktop/deploy_output
 ```
 
 This writes `~/Desktop/deploy_output/{youtube_description.txt,soundcloud_description.txt,run_meta.json}`

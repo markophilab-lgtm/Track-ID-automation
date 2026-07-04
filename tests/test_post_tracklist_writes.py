@@ -27,14 +27,14 @@ def test_write_descriptions_writes_files_and_meta():
         movie = Path(td) / "2026-05-17 20-00-00.mov"; movie.write_text("")
         out = Path(td) / "out"
         rc = _run(["--movie", str(movie), "--log", str(log),
-                   "--skip-mixcloud", "--skip-youtube",
+                   "--skip-mixcloud", "--skip-youtube", "--artist", "Marko",
                    "--write-descriptions", str(out)])
         assert rc == 0
         yt = (out / "youtube_description.txt").read_text()
         assert "Tracklist:" in yt
         assert (out / "soundcloud_description.txt").read_text() == yt
         meta = json.loads((out / "run_meta.json").read_text())
-        assert meta["title"] == "waterhousestudios live stream 2026-05-17"
+        assert meta["title"] == "Marko @ WTHS Radio (17.5.2026)"
         assert meta["movie_path"] == str(movie)
         assert meta["stream_start"] == "2026-05-17T20:00:00"
         assert meta["chapter_count"] >= 1
