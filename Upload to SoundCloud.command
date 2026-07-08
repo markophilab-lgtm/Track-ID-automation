@@ -173,13 +173,13 @@ if LINK=$(python3 "$PROJECT/gofile_upload.py" --file "$MOVIE"); then
   cat > "$BODY_FILE" <<EOF
 Hi $ARTIST,
 
-Thanks for playing at WTHS Radio! Here's the full recording of your set:
+Thank you for playing at WaterHouse Radio! This is the link to your recording:
 
 $LINK
 
-Please download it within 7 days — the link expires after that.
+You have 10 days to download it before it goes offline.
 
-Waterhouse Studios
+This is an automated message from our local AI bro.
 EOF
 
   echo ""
