@@ -54,10 +54,14 @@ echo ""
 echo "Using: $(basename "$MOVIE")"
 echo ""
 
-# --- 2. Artist name -------------------------------------------------------
+# --- 2. Artist name + email ------------------------------------------------
 ARTIST=""
 while [ -z "$ARTIST" ]; do
   read -r -p "Artist name? " ARTIST
+done
+ARTIST_EMAIL=""
+while [ -z "$ARTIST_EMAIL" ]; do
+  read -r -p "Artist's email (the download link will be sent there)? " ARTIST_EMAIL
 done
 
 # --- 3. Date + title (D.M.Y, no leading zeros, no parentheses) ------------
@@ -154,23 +158,58 @@ else
   echo "You can just double-click this file to try again."
 fi
 
-# --- 7. Artist download link (Gofile) --------------------------------------
+# --- 7. Artist download link (Gofile) + email it ----------------------------
 echo ""
-read -r -p "Also upload the recording to Gofile so $ARTIST can download it? (y/n) " WANT_GOFILE
-if [[ "$WANT_GOFILE" =~ ^[Yy] ]]; then
+echo "Uploading the recording to Gofile for $ARTIST — this can take a while."
+echo "Leave this window open."
+if LINK=$(python3 "$PROJECT/gofile_upload.py" --file "$MOVIE"); then
   echo ""
-  echo "Uploading to Gofile — the file is big, this can take a while. Leave this window open."
-  if LINK=$(python3 "$PROJECT/gofile_upload.py" --file "$MOVIE"); then
-    echo ""
-    echo "Artist download link (send this to $ARTIST):"
-    echo "  $LINK"
-    echo "Tell them to download it within 7 days — free Gofile links don't last forever."
-    printf '%s' "$LINK" | pbcopy && echo "(The link is also on your clipboard, ready to paste.)"
+  echo "Artist download link:"
+  echo "  $LINK"
+  printf '%s' "$LINK" | pbcopy && echo "(Also copied to your clipboard.)"
+
+  SUBJECT="Your WTHS Radio set recording — $TITLE"
+  BODY_FILE=$(mktemp)
+  cat > "$BODY_FILE" <<EOF
+Hi $ARTIST,
+
+Thanks for playing at WTHS Radio! Here's the full recording of your set:
+
+$LINK
+
+Please download it within 7 days — the link expires after that.
+
+Waterhouse Studios
+EOF
+
+  echo ""
+  echo "------------------------------------------"
+  echo "  EMAIL PREVIEW"
+  echo "------------------------------------------"
+  echo "To:      $ARTIST_EMAIL"
+  echo "Subject: $SUBJECT"
+  echo ""
+  cat "$BODY_FILE"
+  echo "------------------------------------------"
+  read -r -p "Send this email to $ARTIST_EMAIL? (y/n) " SEND_IT
+  if [[ "$SEND_IT" =~ ^[Yy] ]]; then
+    if python3 "$PROJECT/send_label_email.py" --to "$ARTIST_EMAIL" \
+         --subject "$SUBJECT" --body-file "$BODY_FILE"; then
+      echo "Email sent to $ARTIST_EMAIL."
+    else
+      echo ""
+      echo "The email didn't send (see the messages above)."
+      echo "The link is still on your clipboard — send it to $ARTIST_EMAIL yourself."
+    fi
   else
-    echo ""
-    echo "The Gofile upload didn't work (see the messages above)."
-    echo "Backup: go to swisstransfer.com, drag the file in yourself, set validity to 15 days."
+    echo "OK — not sent. The link is on your clipboard; send it however you like."
   fi
+  rm -f "$BODY_FILE"
+else
+  echo ""
+  echo "The Gofile upload didn't work (see the messages above)."
+  echo "Backup: go to swisstransfer.com, drag the file in yourself, set validity"
+  echo "to 15 days, and email the link to $ARTIST_EMAIL."
 fi
 
 finish "$CODE"
