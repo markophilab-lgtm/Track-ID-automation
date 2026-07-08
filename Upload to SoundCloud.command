@@ -153,4 +153,24 @@ else
   echo "The upload didn't finish (see the messages above)."
   echo "You can just double-click this file to try again."
 fi
+
+# --- 7. Artist download link (Gofile) --------------------------------------
+echo ""
+read -r -p "Also upload the recording to Gofile so $ARTIST can download it? (y/n) " WANT_GOFILE
+if [[ "$WANT_GOFILE" =~ ^[Yy] ]]; then
+  echo ""
+  echo "Uploading to Gofile — the file is big, this can take a while. Leave this window open."
+  if LINK=$(python3 "$PROJECT/gofile_upload.py" --file "$MOVIE"); then
+    echo ""
+    echo "Artist download link (send this to $ARTIST):"
+    echo "  $LINK"
+    echo "Tell them to download it within 7 days — free Gofile links don't last forever."
+    printf '%s' "$LINK" | pbcopy && echo "(The link is also on your clipboard, ready to paste.)"
+  else
+    echo ""
+    echo "The Gofile upload didn't work (see the messages above)."
+    echo "Backup: go to swisstransfer.com, drag the file in yourself, set validity to 15 days."
+  fi
+fi
+
 finish "$CODE"
