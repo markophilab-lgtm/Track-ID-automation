@@ -123,13 +123,6 @@ if ! python3 "$PROJECT/soundcloud_publish.py" --dry-run \
   echo "Couldn't build the preview (see the messages above). Nothing uploaded."
   finish 1
 fi
-echo ""
-read -r -p "Upload this to SoundCloud? (y/n) " GO
-if [[ ! "$GO" =~ ^[Yy] ]]; then
-  echo "OK — nothing uploaded."
-  finish 0
-fi
-
 # --- 6. Upload (with one retry if the SoundCloud login expired) ------------
 echo ""
 echo "Uploading — this takes a few minutes. Leave this window open."
@@ -191,18 +184,13 @@ EOF
   echo ""
   cat "$BODY_FILE"
   echo "------------------------------------------"
-  read -r -p "Send this email to $ARTIST_EMAIL? (y/n) " SEND_IT
-  if [[ "$SEND_IT" =~ ^[Yy] ]]; then
-    if python3 "$PROJECT/send_label_email.py" --to "$ARTIST_EMAIL" \
-         --subject "$SUBJECT" --body-file "$BODY_FILE"; then
-      echo "Email sent to $ARTIST_EMAIL."
-    else
-      echo ""
-      echo "The email didn't send (see the messages above)."
-      echo "The link is still on your clipboard — send it to $ARTIST_EMAIL yourself."
-    fi
+  if python3 "$PROJECT/send_label_email.py" --to "$ARTIST_EMAIL" \
+       --subject "$SUBJECT" --body-file "$BODY_FILE"; then
+    echo "Email sent to $ARTIST_EMAIL."
   else
-    echo "OK — not sent. The link is on your clipboard; send it however you like."
+    echo ""
+    echo "The email didn't send (see the messages above)."
+    echo "The link is still on your clipboard — send it to $ARTIST_EMAIL yourself."
   fi
   rm -f "$BODY_FILE"
 else
