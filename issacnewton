@@ -1,0 +1,16 @@
+#!/bin/bash
+# Colour the room by the key of the music, on Newton's Opticks wheel.
+#
+#   issacnewton            lights on, in the last key used, pulsing with the bass
+#   issacnewton 9B         lights on in G major (green)
+#   issacnewton F#m        classical key names work too
+#   issacnewton --flat 8A  steady colour, no pulsing
+#   issacnewton off        put your own LEDfx scene back
+#   issacnewton status     say what the room is doing right now
+#
+# Needs LEDfx running (the "lights" alias starts it).
+cd "$HOME/git/track_id_project" || {
+  echo "issacnewton: can't find the Track-ID folder in ~/git/track_id_project" >&2
+  exit 1
+}
+exec python3 -m keylight.room "$@"

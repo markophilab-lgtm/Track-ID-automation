@@ -22,6 +22,24 @@ The tracklist line is written **before** the light call, and the light call
 runs on a background thread, so nothing about the lights can cost you a
 tracklist entry or stall BLT.
 
+## The `issacnewton` command
+
+Day to day you don't need any of the detail below — one word does it:
+
+```bash
+issacnewton            # lights on, last key used, pulsing with the bass
+issacnewton 9B         # on, in G major (green)
+issacnewton F#m        # classical key names work too
+issacnewton --flat 8A  # steady colour, no pulsing
+issacnewton off        # put your own LEDfx scene back
+issacnewton status     # what's the room doing right now
+```
+
+Turning it on saves whatever LEDfx was showing first, so `off` restores that
+exact look — including effects bass mode replaces. The saved scene lives in
+`~/.keylight/scene_backup.json` and survives restarts. The alias is in
+`~/.zshrc` (`isaacnewton` works too) and runs `issacnewton` in this repo.
+
 ## Brightness follows the bass (40% → 100%)
 
 With the `--bass` flag (which the installed expression uses), the room doesn't
@@ -50,20 +68,26 @@ instance) become bass-pulsing too while this is on. Re-activate any LEDfx scene
 to put your own looks back; scenes themselves are never modified. To go back to
 flat color permanently, remove `--bass` from the BLT expression.
 
-## Install the expression (one time, ~2 minutes)
+## Making the colour follow the music by itself (one time)
 
-BLT is running as you read this, and it rewrites its preferences when it
-quits — so this must be pasted through the UI, not edited on disk.
+Until this is done, the colour only changes when you type `issacnewton <key>`.
+After it, every track change recolours the room on its own — nothing to run,
+nothing to remember.
 
-1. In Beat Link Trigger, first back up what you have: **File → Save** (or
-   Triggers → Export) so you can get back to today's setup.
-2. Open the trigger's **Tracked Update Expression** editor (the same one that
-   currently writes `tracklist_live.txt`).
-3. Replace its whole contents with `blt_expressions/tracked_update_with_lights.clj`
-   from this repo. The logging half is byte-identical to what's in there now;
-   the only addition is the key-to-light block at the bottom.
-4. Set the trigger's **Enabled** to *Always* and leave **Players** as-is —
-   the expression checks `isTempoMaster` itself.
+**The easy way:** in Beat Link Trigger, **File → Load Triggers** and pick
+`keylight-triggers.blt` from this repo. That file was generated from your own
+live BLT setup, so it is identical to what you have now in every respect except
+the one expression — same trigger, same channel, same note, same global setup,
+same tracklist logging. Verified by comparing the two configurations key by key.
+
+**The manual way**, if you'd rather see what changes: open the trigger's
+**Tracked Update Expression** editor (the one that writes `tracklist_live.txt`)
+and replace its contents with `blt_expressions/tracked_update_with_lights.clj`.
+The logging half is byte-identical to what's in there now; the only addition is
+the key-to-light block at the bottom.
+
+Either way, don't edit BLT's preference file on disk — BLT rewrites it when it
+quits and your change would vanish.
 
 ## Bring-up checks, in order
 
