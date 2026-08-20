@@ -16,6 +16,7 @@ import argparse
 import logging
 import sys
 
+from keylight import state
 from keylight.keys import parse_key
 from keylight.newton import color_for_key, gradient_for_key
 from keylight.ledfx import LedfxClient, BASS_FLOOR
@@ -58,6 +59,14 @@ def main(argv=None, client_factory=LedfxClient):
 
     pitch_class, is_minor = parsed
     color = color_for_key(pitch_class, is_minor)
+
+    # `issacnewton off` sets this. Without the check, the next track change
+    # would paint straight over the scene he just chose by hand.
+    if state.is_paused() and not args.dry_run:
+        if not args.quiet:
+            print(f"keylight: paused (issacnewton off) — key {args.key} ignored")
+        return 0
+
     client = client_factory(base_url=args.base_url, dry_run=args.dry_run)
 
     try:

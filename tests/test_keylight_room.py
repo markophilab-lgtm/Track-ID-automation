@@ -6,7 +6,7 @@ import shutil
 import tempfile
 import unittest
 
-from keylight import room
+from keylight import room, state
 
 
 class StatefulFake:
@@ -56,13 +56,13 @@ def scene():
 class RoomTestCase(unittest.TestCase):
     def setUp(self):
         self.tmp = pathlib.Path(tempfile.mkdtemp())
-        self._orig_state = room.STATE_DIR
-        room.STATE_DIR = self.tmp
+        self._orig_state = state.STATE_DIR
+        state.STATE_DIR = self.tmp
         self.fake = StatefulFake(scene())
         self.addCleanup(self._cleanup)
 
     def _cleanup(self):
-        room.STATE_DIR = self._orig_state
+        state.STATE_DIR = self._orig_state
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def run_room(self, *argv):

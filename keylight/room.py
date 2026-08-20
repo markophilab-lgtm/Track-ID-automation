@@ -3,7 +3,7 @@
 
     issacnewton              turn it on, in the last key used
     issacnewton 9B           turn it on in G major
-    issacnewton off          put the previous LEDfx scene back
+    issacnewton off          put the previous LEDfx scene back and stay put
     issacnewton status       say what the room is doing right now
 
 Turning it on saves whatever LEDfx was showing first, so `off` can put the
@@ -12,21 +12,16 @@ exact same look back — including effects that bass mode replaces.
 
 import argparse
 import json
-import pathlib
 import sys
 
-from keylight import cli
+from keylight import cli, state
 from keylight.keys import parse_key
 from keylight.ledfx import LedfxClient, BASS_EFFECT, BASS_FLOOR
 from keylight.newton import color_for_key
 
-STATE_DIR = pathlib.Path.home() / ".keylight"
 DEFAULT_KEY = "D"
 
-
-def _state_file(name):
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
-    return STATE_DIR / name
+_state_file = state.state_file
 
 
 def active_effects(client):
@@ -79,8 +74,11 @@ def describe(client):
                 f"color {', '.join(sorted(c for c in colors if c))}, "
                 f"dipping to {int(min(floor) * 100)}% between kicks.")
     kinds = sorted({e["type"] for e in effects.values()})
+    following = ("paused — track changes are being ignored"
+                 if state.is_paused()
+                 else "following the music; the next track will recolour it")
     return (f"Bass mode is OFF. {len(effects)} strips running your own effects "
-            f"({', '.join(kinds)}).")
+            f"({', '.join(kinds)}). Key-to-light is {following}.")
 
 
 def main(argv=None, opener=None):
@@ -126,18 +124,25 @@ def main(argv=None, opener=None):
             return 0
 
         if command == "off":
+            # Pause first, and pause even if there's nothing to restore: with
+            # the Beat Link Trigger expression installed, the next track change
+            # would otherwise repaint whatever scene he just picked by hand.
+            state.pause()
             restored = restore_scene(client)
             if restored < 0:
-                print("issacnewton: nothing saved to go back to — pick a scene "
-                      "in LEDfx instead.", file=sys.stderr)
+                print("issacnewton: off — the room will stop following the "
+                      "music, but I had no saved scene to put back. Pick one "
+                      "in LEDfx.", file=sys.stderr)
                 return 1
-            print(f"Your scene is back on {restored} strips.")
+            print(f"Your scene is back on {restored} strips, and the room will "
+                  f"stop following the music until `issacnewton on`.")
             return 0
 
         # ---- on -------------------------------------------------------------
         key = key or _remembered_key()
         saved = save_scene(client)
         _state_file("last_key").write_text(key + "\n")
+        state.resume()
     except Exception as exc:
         print(f"issacnewton: can't reach LEDfx ({exc}). Is it running?",
               file=sys.stderr)
