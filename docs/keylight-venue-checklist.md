@@ -22,6 +22,34 @@ The tracklist line is written **before** the light call, and the light call
 runs on a background thread, so nothing about the lights can cost you a
 tracklist entry or stall BLT.
 
+## Brightness follows the bass (40% → 100%)
+
+With the `--bass` flag (which the installed expression uses), the room doesn't
+just sit at one color — it breathes with the kick: about 40% brightness between
+hits, up to full on the beat, always in the track's key color.
+
+LEDfx does the reacting, not us. The strips are set to LEDfx's **Magnitude**
+effect listening to the **Bass** range, which renders `gradient × bass power`,
+and the base effect adds `background_color × background_brightness` underneath.
+So a key-colored gradient at 60% brightness sitting on a 40% key-colored floor
+swings between 40% and 100% with the music, at LEDfx's own frame rate. Nothing
+of ours runs between tracks.
+
+Tuning at the venue:
+
+```bash
+python3 -m keylight.cli --bass "8A"                    # standard 40% floor
+python3 -m keylight.cli --bass --bass-floor 0.25 "8A"  # darker between kicks, punchier
+python3 -m keylight.cli --bass --bass-floor 0.6  "8A"  # gentler breathing
+python3 -m keylight.cli "8A"                           # flat color, no pulsing
+```
+
+Note this **replaces the effect** on every active virtual with Magnitude, so
+strips that were running something else (your `3bars` bands effect, for
+instance) become bass-pulsing too while this is on. Re-activate any LEDfx scene
+to put your own looks back; scenes themselves are never modified. To go back to
+flat color permanently, remove `--bass` from the BLT expression.
+
 ## Install the expression (one time, ~2 minutes)
 
 BLT is running as you read this, and it rewrites its preferences when it
@@ -45,6 +73,9 @@ quits — so this must be pasted through the UI, not edited on disk.
       prints `key 8A -> #00008c on N virtuals`.
 - [ ] Live single shot, lights should turn red: `python3 -m keylight.cli "D"`.
       Then put your look back with your usual LEDfx scene.
+- [ ] Bass pulse, with music playing: `python3 -m keylight.cli --bass "D"` →
+      red that breathes with the kick. Adjust with `--bass-floor` if it's too
+      subtle (lower) or too jumpy (higher).
 - [ ] Paste the expression in (above), load a key-tagged track on a CDJ, play
       it, make it master → room takes that key's color within about a second.
 - [ ] Handoff: play a different key on the other deck and hand master over →
@@ -67,11 +98,13 @@ quits — so this must be pasted through the UI, not edited on disk.
 
 ## What's verified vs. not
 
-Verified on this Mac mini on 2026-08-20: all 39 unit tests; the color swap
+Verified on this Mac mini on 2026-08-20: all 53 unit tests; the color swap
 against the live LEDfx rig (7 active virtuals, only color/gradient values
-change — speed, blur, background, effect type all preserved); and one real
+change — speed, blur, background, effect type all preserved); a real
 round-trip PUT to the `end` strip, which took effect and was restored to its
-original color.
+original color; and the bass-reactive config accepted by LEDfx on that same
+strip, also restored.
 
-Not yet verified: the BLT expression against real CDJs — that needs decks on
-the network, which is the first item in the list above.
+Not yet verified: the BLT expression against real CDJs, and how the bass floor
+feels on a loud system — both need decks and music, which is what the list
+above is for.

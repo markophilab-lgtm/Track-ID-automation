@@ -41,9 +41,12 @@
         (future
           (try
             (let [repo (str (System/getProperty "user.home") "/git/track_id_project")
+                  ;; --bass: brightness rides the kick, 40% between hits up to
+                  ;; 100% on the beat. Drop that one flag for a flat color.
                   pb   (java.lang.ProcessBuilder.
                         (into-array String
-                                    ["python3" "-m" "keylight.cli" "--quiet" key-str]))]
+                                    ["python3" "-m" "keylight.cli" "--quiet"
+                                     "--bass" key-str]))]
               (.directory pb (java.io.File. repo))
               (.redirectErrorStream pb true)
               (let [proc (.start pb)]

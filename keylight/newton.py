@@ -36,13 +36,15 @@ def _hsv_hex(hue_deg, sat, val):
     return "#{:02x}{:02x}{:02x}".format(round(r * 255), round(g * 255), round(b * 255))
 
 
-def color_for_key(pitch_class, is_minor):
+def color_for_key(pitch_class, is_minor, value_scale=1.0):
+    """Hex color for a key. value_scale dims it without shifting the hue."""
     sat, val = (MINOR_SAT, MINOR_VAL) if is_minor else (1.0, 1.0)
-    return _hsv_hex(HUES[pitch_class], sat, val)
+    return _hsv_hex(HUES[pitch_class], sat, val * value_scale)
 
 
-def gradient_for_key(pitch_class, is_minor):
+def gradient_for_key(pitch_class, is_minor, value_scale=1.0):
     sat, val = (MINOR_SAT, MINOR_VAL) if is_minor else (1.0, 1.0)
+    val *= value_scale
     hue = HUES[pitch_class]
     lo = _hsv_hex(hue - GRADIENT_SPREAD, sat, val)
     mid = _hsv_hex(hue, sat, val)
